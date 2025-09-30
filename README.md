@@ -3,7 +3,7 @@ Creating a car dealership program that uses mySQL. We implement GUI with javaFX.
 
 ## Dependencies
 - JavaFX SDK (24.0.2)(https://openjfx.io/)
-- iText 7 (9.3.0) ([https://itextpdf.com/](https://github.com/itext/itext-java/releases/tag/9.3.0))
+- iText 7 (9.3.0) (watch youtube video on it) ([https://itextpdf.com/](https://github.com/itext/itext-java/releases/tag/9.3.0))
 - MySQL Connector/J (9.4.0) (https://dev.mysql.com/downloads/connector/j/)
 
 ## Setup
