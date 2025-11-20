@@ -16,6 +16,9 @@ import java.util.Objects;
 
 public class LoginScreen
 {
+
+    public static String loggedInEmail;
+
     public static boolean isAdmin = false; // store admin status globally
     @FXML
     private PasswordField password_field;
@@ -27,9 +30,9 @@ public class LoginScreen
 
     public void _login(ActionEvent e)
     {
-
         String entered_email = username_field.getText();
         System.out.println("email entered: " + entered_email);
+        loggedInEmail = entered_email;
         String entered_password = password_field.getText();
         System.out.println("password entered: " + entered_password);
 

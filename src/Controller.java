@@ -27,6 +27,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.*;
+import java.text.NumberFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -139,21 +142,6 @@ public class Controller
         stage.show();
     }
 
-    public void _search(ActionEvent e)
-    {
-//        ObservableList<Car> filterd_cars = FXCollections.observableArrayList();
-//        for(Car c : cars)
-//        {
-//
-//            if (c.getMake().toLowerCase().contains("subaru"))
-//            {
-//                filterd_cars.add(c);
-//            }
-//        }
-//
-//        table.setItems(filterd_cars);
-    }
-
     public void _list(ActionEvent e) throws SQLException
     {
         List<Car> out = new ArrayList<>();
@@ -255,7 +243,7 @@ public class Controller
         System.out.println("_purchase: " + event);
     }
 
-    private void setupPDF(Car car) throws IOException
+    private void setupPDF(Car car) throws IOException, SQLException
     {
 
         String destination = "bill_of_sale.pdf";
@@ -286,50 +274,136 @@ public class Controller
         vehicle_info.addCell(new Cell().add(new Paragraph("Make: \t\t" + car.getMake())));
         vehicle_info.addCell(new Cell().add(new Paragraph("Model: \t\t" + car.getModel())));
 
-        vehicle_info.addCell(new Cell().add(new Paragraph("Condition: \t\t" + car.getCondition())));
+        vehicle_info.addCell(new Cell().add(new Paragraph("Condition: \t\t" + car.getCondition().toUpperCase())));
         vehicle_info.addCell(new Cell().add(new Paragraph("year: \t\t" + car.getYear()))
                 .setPaddingRight(55));
 
 
-        vehicle_info.addCell(new Cell().add(new Paragraph("Price: \t\t" + "$" + car.getPrice())));
-        vehicle_info.addCell(new Cell().add(new Paragraph("Mileage:\t\t" + car.getMileage())));
+        double _price = .9075 * (Double.parseDouble(String.valueOf(car.getPrice())));
+        double price = _price;
+        String formattedPrice = NumberFormat.getNumberInstance().format(price);
+
+        vehicle_info.addCell(new Cell().add(new Paragraph("Price: \t\t" + "$" + formattedPrice + "\t(Inc. TN sales tax)")));
+
+        String formattedMiles = NumberFormat.getNumberInstance().format(car.getMileage());
+        vehicle_info.addCell(new Cell().add(new Paragraph("Mileage:\t\t" + formattedMiles)));
 
         vehicle_info.addCell(new Cell(1, 2).add(new Paragraph("VIN #: \t\t" + car.getVIN())));
         vehicle_info.setMarginBottom(25);
         document.add(vehicle_info);
         // ******************************************************************************************************************
-        Paragraph second_section = new Paragraph("Date of sale ___________________ (mm/dd/yyyy)")
+
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+        String formattedDate = today.format(formatter);
+
+
+        Paragraph second_section = new Paragraph("Date of sale: " + formattedDate)
                 .setFontSize(13)
                 .setFont(bold)
                 .setTextAlignment(TextAlignment.LEFT)
                 .setMarginBottom(10);
         document.add(second_section);
         // ******************************************************************************************************************
-        Paragraph buyerSection = new Paragraph()
-                .add(new Text("Buyer").setFont(bold).setFontSize(15).setUnderline())   // header
-                .add("\n\nName(s): ")
-                .add(new Text("______________________________"))   // blank
-                .add("\n\nAddress: ")
-                .add(new Text("______________________________"))
-                .add("\n\nPhone #: ")
-                .add(new Text("______________________________"))
-                .add("\n\nEmail: ")
-                .add(new Text("________________________________"));
-        buyerSection.setMarginBottom(25);
-        document.add(buyerSection);
-        // ******************************************************************************************************************
-        Paragraph sellerSection = new Paragraph()
-                .add(new Text("Seller").setFont(bold).setFontSize(15).setUnderline())
-                .add("\n\nSeller Name(s): ")
-                .add(new Text("______________________________"))
-                .add(new Text("\n\nAddress: "))
-                .add(new Text("______________________________"))
-                .add(new Text("\n\nPhone #: "))
-                .add(new Text("______________________________"))
-                .add(new Text("\n\nEmail: "))
-                .add(new Text("______________________________"));
-        sellerSection.setMarginBottom(25);
-        document.add(sellerSection);
+
+        String firstName = "";
+        String lastName = "";
+        String email = "";
+        String phone = "";
+        String password = "";
+        boolean admin = false;
+
+        try (Connection con = DriverManager.getConnection(
+                "jdbc:mysql://127.0.0.1:3306/cars_db", "root", "root");
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT FirstName, LastName, email, phone_number, Password, is_admin FROM login_info WHERE email=?"
+             ))
+        {
+            ps.setString(1, LoginScreen.loggedInEmail);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next())
+            {
+                firstName = rs.getString("FirstName");
+                lastName = rs.getString("LastName");
+                email = rs.getString("email");
+                phone = rs.getString("phone_number");
+                password = rs.getString("Password");
+                admin = rs.getBoolean("is_admin");
+
+                System.out.println(firstName + " " + lastName + " " + phone);
+            } else
+            {
+                System.out.println("No user found.");
+            }
+
+        } catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+
+
+// ============================
+//        PARAGRAPHS
+// ============================
+
+        if (!admin)   // ❗ NOT ADMIN → BUYER is filled in
+        {
+            Paragraph buyerSection = new Paragraph()
+                    .add(new Text("Buyer").setFont(bold).setFontSize(15).setUnderline())
+                    .add("\n\nName(s): ")
+                    .add(new Text("\t" + firstName + " " + lastName))  // FIXED
+                    .add("\n\nAddress: ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nPhone #: ")
+                    .add(new Text("\t" + phone))
+                    .add("\n\nEmail: ")
+                    .add(new Text("\t" + email));
+            buyerSection.setMarginBottom(25);
+            document.add(buyerSection);
+
+            Paragraph sellerSection = new Paragraph()
+                    .add(new Text("Seller").setFont(bold).setFontSize(15).setUnderline())
+                    .add("\n\nSeller Name(s): ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nAddress: ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nPhone #: ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nEmail: ")
+                    .add(new Text("______________________________"));
+            sellerSection.setMarginBottom(25);
+            document.add(sellerSection);
+        } else
+        {
+            Paragraph buyerSection = new Paragraph()
+                    .add(new Text("Buyer").setFont(bold).setFontSize(15).setUnderline())
+                    .add("\n\nName(s): ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nAddress: ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nPhone #: ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nEmail: ")
+                    .add(new Text("______________________________"));
+            buyerSection.setMarginBottom(25);
+            document.add(buyerSection);
+
+            Paragraph sellerSection = new Paragraph()
+                    .add(new Text("Seller").setFont(bold).setFontSize(15).setUnderline())
+                    .add("\n\nSeller Name(s): ")
+                    .add(new Text("\t" + firstName + " " + lastName))   // FIXED
+                    .add("\n\nAddress: ")
+                    .add(new Text("______________________________"))
+                    .add("\n\nPhone #: ")
+                    .add(new Text("\t" + phone))
+                    .add("\n\nEmail: ")
+                    .add(new Text("\t" + email));
+            sellerSection.setMarginBottom(25);
+            document.add(sellerSection);
+        }
+
         // ******************************************************************************************************************
         document.close();
         System.out.println("PDF created at " + destination);
